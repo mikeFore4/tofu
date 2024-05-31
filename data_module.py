@@ -9,6 +9,12 @@ def convert_raw_data_to_model_format(tokenizer, max_length,  question, answer, m
     question_start_token, question_end_token, answer_token = model_configs['question_start_tag'], model_configs['question_end_tag'], model_configs['answer_tag']
     new_question = question_start_token + question + question_end_token
     new_answer = answer_token + answer
+
+    # needed for LLaMa3 formatting, but making it an "if" to preserve backwards
+    # compatibility
+    if 'answer_end_tag' in model_configs.keys():
+        new_answer += model_configs['answer_end_tag']
+
     full_text = new_question + new_answer
     num_question_tokens = len(tokenizer.tokenize(new_question, add_special_tokens=True))
 
