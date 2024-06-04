@@ -146,6 +146,7 @@ def get_dataloader(cfg, eval_task, tokenizer, folder, split, question_key, answe
     return eval_dataloader, base_eval_dataloader, perturb_dataloader
 
 def get_all_evals(cfg, model, tokenizer, eval_task, eval_dataloader, base_eval_dataloader, perturb_dataloader, normalize_gt=False):
+    model_cfg = get_model_identifiers_from_yaml(cfg.model_family)
     eval_logs = {}
 
     gen_outputs = []
