@@ -21,6 +21,7 @@ phi:
   question_start_tag: "Question: "
   question_end_tag: "\n"
   answer_tag: "Answer: "
+  answer_end_tag: ""
   flash_attention2: "false"
   gradient_checkpointing: "false"
   ft_model_path: "locuslab/tofu_ft_phi-1.5"
@@ -29,6 +30,7 @@ stablelm:
   question_start_tag: "Question: "
   question_end_tag: "\n"
   answer_tag: "Answer: "
+  answer_end_tag: ""
   flash_attention2: "false"
   gradient_checkpointing: "false"
   ft_model_path: "paper_models/final_ft_noLORA_5_epochs_inst_lr1e-05_stablelm/checkpoint-625"
@@ -37,6 +39,7 @@ pythia-1.4:
   question_start_tag: "Question: "
   question_end_tag: "\n"
   answer_tag: "Answer: "
+  answer_end_tag: ""
   flash_attention2: "false"
   gradient_checkpointing: "false"
 
