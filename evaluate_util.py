@@ -303,13 +303,11 @@ def eval_accuracy(logits, labels):
 
 def run_generation(cfg, batch, model, tokenizer):
     input_ids = batch["input_ids"]
-    input_strings = tokenizer.batch_decode(input_ids, skip_special_tokens=True)
-    split_symbol = " [/INST]" if cfg.model_family == 'llama2-7b' else 'Answer: '
-    ground_truth = [s.split(split_symbol)[1] for s in input_strings]
-    input_strings = [s.split(split_symbol)[0] for s in input_strings]
-    #add ["/INST "] to the end of each string
-    if cfg.model_family == 'llama2-7b':
-        input_strings = [s + split_symbol for s in input_strings]
+    split_symbol = model_config['question_end_tag'] + model_config['answer_tag']
+    input_strings = tokenizer.batch_decode(input_ids)
+
+    ground_truth = [(model_config['answer_tag'] + s.split(split_symbol)[1]).replace(tokenizer.eos_token,'').replace(model_config['answer_end_tag'],'') for s in input_strings]
+    input_strings = [s.split(split_symbol)[0] + split_symbol for s in input_strings]
         
     #we only want to retain the input before the [/INST] token. split each string to only retain the content before the [/INST] token
     # ground_truth = [s.split("[/INST] ")[1] for s in input_strings]
