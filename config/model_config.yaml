@@ -16,6 +16,13 @@ llama3-8b:
   flash_attention2: "true"
   gradient_checkpointing: "true"
   ft_model_path: "locuslab/tofu_ft_llama3-8b"
+  rag_config:
+    use_rag: False
+    rag_start_token: ""
+    rag_end_token: ""
+    chromadb_path: ""
+    collection_name: ""
+    emb_model: "all-miniLM-L6-v2"
 phi:
   hf_key: "microsoft/phi-1_5"
   question_start_tag: "Question: "

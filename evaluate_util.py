@@ -106,7 +106,8 @@ def get_dataloader(cfg, eval_task, tokenizer, folder, subset, split, question_ke
         max_length=cfg.generation.max_length, 
         split=split, 
         question_key=question_key, 
-        answer_key=answer_key
+        answer_key=answer_key,
+        rag_config=model_cfg['rag_config']
     ) 
     base_torch_format_dataset = TextDatasetQA(
         folder,
@@ -116,7 +117,8 @@ def get_dataloader(cfg, eval_task, tokenizer, folder, subset, split, question_ke
         max_length=cfg.generation.max_length, 
         split=split, 
         question_key=question_key, 
-        answer_key=base_answer_key
+        answer_key=answer_key,
+        rag_config=model_cfg['rag_config']
     )
 
     perturb_torch_format_dataset = TextDatasetQA(
@@ -127,7 +129,8 @@ def get_dataloader(cfg, eval_task, tokenizer, folder, subset, split, question_ke
         max_length=cfg.generation.max_length, 
         split=split, 
         question_key=question_key, 
-        answer_key=perturbed_answer_key
+        answer_key=perturbed_answer_key,
+        rag_config=model_cfg['rag_config']
     )
 
     if cfg.ds_size:

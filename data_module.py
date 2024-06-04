@@ -3,11 +3,32 @@ from torch import nn
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 import datasets
+import chromadb
+from langchain_chroma import Chroma
+from langchain_community.embeddings.sentence_transformer import SentenceTransformerEmbeddings
+
 from utils import get_model_identifiers_from_yaml, add_dataset_index
 
-def convert_raw_data_to_model_format(tokenizer, max_length,  question, answer, model_configs):
+
+def make_rag_prompt(docs, rag_config):
+    prompt = rag_config['rag_start_token']
+    message = "You are a helpful assistant who answers questions. If helpful, please use the following information to inform your answer to the user's question: "
+    for doc in docs:
+        message += f"\n{doc}"
+
+    prompt += message
+    prompt += rag_config['rag_end_token']
+
+    return prompt
+
+def convert_raw_data_to_model_format(tokenizer, max_length,  question, answer,
+        model_configs, model_family, docs, rag_config):
     question_start_token, question_end_token, answer_token = model_configs['question_start_tag'], model_configs['question_end_tag'], model_configs['answer_tag']
     new_question = question_start_token + question + question_end_token
+    if rag_config is not None and rag_config['use_rag']:
+        rag_prompt = make_rag_prompt(docs, rag_config)
+        new_question = rag_prompt + new_question
+
     new_answer = answer_token + answer
 
     # needed for LLaMa3 formatting, but making it an "if" to preserve backwards
@@ -41,7 +62,7 @@ def convert_raw_data_to_model_format(tokenizer, max_length,  question, answer, m
 class TextForgetDatasetQA(Dataset):
     def __init__(self, data_path, forget_subset, forget_split, retain_subset,
             retain_split, tokenizer, model_family, max_length=512,
-            loss_type="idk"):
+            loss_type="idk", rag_config=None):
         super(TextForgetDatasetQA, self).__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -57,6 +78,26 @@ class TextForgetDatasetQA(Dataset):
         else:
             self.split1, self.split2 = "forget", "retain"
 
+        self.use_rag = False
+        self.rag_config = rag_config
+        if rag_config is not None and rag_config['use_rag']:
+            self.use_rag = True
+            persistent_client = chromadb.PersistentClient(
+                    path=rag_config['chromadb_path'])
+
+            emb_func = SentenceTransformerEmbeddings(
+                    model_name=rag_config['emb_model']
+                    )
+
+            rag_db = Chroma(
+                    client=persistent_client,
+                    collection_name=rag_config['collection_name'],
+                    embedding_function=emb_func
+                    )
+
+            self.retriever = rag_db.as_retriever()
+
+
     def __len__(self):
         return len(self.forget_data)
 
@@ -69,12 +110,19 @@ class TextForgetDatasetQA(Dataset):
             question = data[idx]['question']
             answer = data[idx]['answer']
 
+            if self.use_rag:
+                docs = [d.page_content for d in self.retriever.invoke(question)]
+            else:
+                docs = None
+
             if data_type == "idk":
                 #get a random answer position from idk
                 rand_pos = torch.randint(0, len(self.idk), (1,)).item()
                 answer = self.idk[rand_pos].strip()
                 
-            converted_data = convert_raw_data_to_model_format(self.tokenizer, self.max_length, question, answer, self.model_configs)
+            converted_data = convert_raw_data_to_model_format(self.tokenizer,
+                    self.max_length, question, answer, self.model_configs,
+                    self.model_family, docs, self.rag_config)
             rets.append(converted_data)
         return rets
 
@@ -118,7 +166,9 @@ class TextForgetDatasetDPOQA(Dataset):
 
 
 class TextDatasetQA(Dataset):
-    def __init__(self, data_path, sub_data_path, tokenizer, model_family, max_length=512, split = None, question_key='question', answer_key='answer'):
+    def __init__(self, data_path, sub_data_path, tokenizer, model_family,
+            max_length=512, split = None, question_key='question',
+            answer_key='answer', rag_config=None):
         super(TextDatasetQA, self).__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -131,6 +181,26 @@ class TextDatasetQA(Dataset):
         self.qk = question_key
         self.ak = answer_key
 
+        self.use_rag = False
+        self.rag_config = rag_config
+        if rag_config is not None and rag_config['use_rag']:
+            self.use_rag = True
+            persistent_client = chromadb.PersistentClient(
+                    path=rag_config['chromadb_path'])
+
+            emb_func = SentenceTransformerEmbeddings(
+                    model_name=rag_config['emb_model']
+                    )
+
+            rag_db = Chroma(
+                    client=persistent_client,
+                    collection_name=rag_config['collection_name'],
+                    embedding_function=emb_func
+                    )
+
+            self.retriever = rag_db.as_retriever()
+
+
     def __len__(self):
         return len(self.data)
 
@@ -141,12 +211,19 @@ class TextDatasetQA(Dataset):
         if isinstance(answers, str):
             answers = [answers]
 
+        if self.use_rag:
+            docs = [d.page_content for d in self.retriever.invoke(question)]
+        else:
+            docs = None
+
         pad_input_ids_list = []
         label_list = []
         pad_attention_mask_list = []
 
         for answer in answers:
-            converted_data = convert_raw_data_to_model_format(self.tokenizer, self.max_length, question, answer, self.model_configs)
+            converted_data = convert_raw_data_to_model_format(self.tokenizer,
+                    self.max_length, question, answer, self.model_configs,
+                    self.model_family, docs, self.rag_config)
             pad_input_ids_list.append(converted_data[0])
             label_list.append(converted_data[1])
             pad_attention_mask_list.append(converted_data[2])
