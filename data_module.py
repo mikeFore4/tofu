@@ -22,7 +22,7 @@ def make_rag_prompt(docs, rag_config):
     return prompt
 
 def convert_raw_data_to_model_format(tokenizer, max_length,  question, answer,
-        model_configs, model_family, docs, rag_config):
+        model_configs, docs, rag_config):
     question_start_token, question_end_token, answer_token = model_configs['question_start_tag'], model_configs['question_end_tag'], model_configs['answer_tag']
     new_question = question_start_token + question + question_end_token
     if rag_config is not None and rag_config['use_rag']:
@@ -122,7 +122,7 @@ class TextForgetDatasetQA(Dataset):
                 
             converted_data = convert_raw_data_to_model_format(self.tokenizer,
                     self.max_length, question, answer, self.model_configs,
-                    self.model_family, docs, self.rag_config)
+                    docs, self.rag_config)
             rets.append(converted_data)
         return rets
 
@@ -223,7 +223,7 @@ class TextDatasetQA(Dataset):
         for answer in answers:
             converted_data = convert_raw_data_to_model_format(self.tokenizer,
                     self.max_length, question, answer, self.model_configs,
-                    self.model_family, docs, self.rag_config)
+                    docs, self.rag_config)
             pad_input_ids_list.append(converted_data[0])
             label_list.append(converted_data[1])
             pad_attention_mask_list.append(converted_data[2])
