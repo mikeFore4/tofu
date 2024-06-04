@@ -214,6 +214,9 @@ def main(cfg):
     if os.environ.get('LOCAL_RANK') is not None:
         local_rank = int(os.environ.get('LOCAL_RANK', '0'))
         device_map = {'': local_rank}
+    else:
+        local_rank = 0
+        device_map = {'': local_rank}
 
     os.environ["WANDB_DISABLED"] = "true"
     model_cfg = get_model_identifiers_from_yaml(cfg.model_family)
