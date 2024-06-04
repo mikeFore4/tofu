@@ -96,10 +96,11 @@ def eval_perturbation_ratio(eval_dataloader, perturb_dataloader, model):
 
     return eval_logs
 
-def get_dataloader(cfg, eval_task, tokenizer, folder, split, question_key, answer_key, base_answer_key, perturbed_answer_key):
+def get_dataloader(cfg, eval_task, tokenizer, folder, subset, split, question_key, answer_key, base_answer_key, perturbed_answer_key):
 
     torch_format_dataset = TextDatasetQA( 
-        folder, 
+        folder,
+        subset,
         tokenizer=tokenizer, 
         model_family=cfg.model_family, 
         max_length=cfg.generation.max_length, 
@@ -109,6 +110,7 @@ def get_dataloader(cfg, eval_task, tokenizer, folder, split, question_key, answe
     ) 
     base_torch_format_dataset = TextDatasetQA(
         folder,
+        subset,
         tokenizer=tokenizer, 
         model_family=cfg.model_family, 
         max_length=cfg.generation.max_length, 
@@ -119,6 +121,7 @@ def get_dataloader(cfg, eval_task, tokenizer, folder, split, question_key, answe
 
     perturb_torch_format_dataset = TextDatasetQA(
         folder,
+        subset,
         tokenizer=tokenizer, 
         model_family=cfg.model_family, 
         max_length=cfg.generation.max_length, 
@@ -210,7 +213,7 @@ def get_all_evals(cfg, model, tokenizer, eval_task, eval_dataloader, base_eval_d
 
 @hydra.main(version_base=None, config_path="config", config_name="eval_everything")
 def main(cfg):
-    assert len(cfg.data_path)==len(cfg.split_list)==len(cfg.eval_task)==len(cfg.question_key)==len(cfg.answer_key)==len(cfg.base_answer_key)==len(cfg.perturbed_answer_key), "data_path, split, eval_task, question_key, and answer_key must be the same length"
+    assert len(cfg.data_path)==len(cfg.split_list)==len(cfg.subset_list)==len(cfg.eval_task)==len(cfg.question_key)==len(cfg.answer_key)==len(cfg.base_answer_key)==len(cfg.perturbed_answer_key), "data_path, split, eval_task, question_key, and answer_key must be the same length"
     Path(cfg.save_dir).mkdir(parents=True, exist_ok=True)
 
     if os.environ.get('LOCAL_RANK') is not None:
@@ -264,9 +267,9 @@ def main(cfg):
     #write custom eval loop using compute_metrics
 
     aggregated_eval_logs = {}
-    for i, (folder, split, question_key, answer_key, eval_task, base_answer_key, perturbed_answer_key) in enumerate(zip(cfg.data_path, cfg.split_list, cfg.question_key, cfg.answer_key, cfg.eval_task, cfg.base_answer_key, cfg.perturbed_answer_key)):
+    for i, (folder, subset, split, question_key, answer_key, eval_task, base_answer_key, perturbed_answer_key) in enumerate(zip(cfg.data_path, cfg.subset_list, cfg.split_list, cfg.question_key, cfg.answer_key, cfg.eval_task, cfg.base_answer_key, cfg.perturbed_answer_key)):
         world_size = int(os.environ.get('WORLD_SIZE', '1'))
-        print(f'Working on eval task {eval_task} with split {split}')
+        print(f'Working on eval task {eval_task} with split {subset} - {split}')
         save_filename = os.path.join(cfg.save_dir, f"{eval_task}.json")
         save_filename = save_filename if world_size == 1 else os.path.join(cfg.save_dir, f"{eval_task}_{os.environ.get('LOCAL_RANK', '0')}.json")
 
@@ -274,7 +277,7 @@ def main(cfg):
             print(f"Skipping {eval_task} because {save_filename} already exists")
             continue
 
-        eval_dataloader, base_eval_dataloader, perturb_dataloader = get_dataloader(cfg, eval_task, tokenizer, folder, split, question_key, answer_key, base_answer_key, perturbed_answer_key)
+        eval_dataloader, base_eval_dataloader, perturb_dataloader =get_dataloader(cfg, eval_task, tokenizer, folder, subset, split, question_key, answer_key, base_answer_key, perturbed_answer_key)
 
         normalize_gt = False 
         if 'eval_log' not in eval_task:

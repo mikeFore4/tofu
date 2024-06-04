@@ -38,15 +38,15 @@ def convert_raw_data_to_model_format(tokenizer, max_length,  question, answer, m
     return torch.tensor(pad_input_ids),torch.tensor(label),torch.tensor(pad_attention_mask)
     
 
-
 class TextForgetDatasetQA(Dataset):
-    def __init__(self, data_path, tokenizer, model_family,  max_length=512, split = "forget10", loss_type="idk"):
+    def __init__(self, data_path, forget_subset, forget_split, retain_subset,
+            retain_split, tokenizer, model_family, max_length=512,
+            loss_type="idk"):
         super(TextForgetDatasetQA, self).__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length
-        self.forget_data = datasets.load_dataset(data_path, split)["train"]
-        retain_split = "retain" + str(100 - int(split.replace("forget", ""))).zfill(2)
-        self.retain_data =datasets.load_dataset(data_path, retain_split)["train"]
+        self.forget_data = datasets.load_dataset(data_path, forget_subset)[forget_split]
+        self.retain_data =datasets.load_dataset(data_path, retain_subset)[retain_split]
         self.model_configs = get_model_identifiers_from_yaml(model_family)
         self.loss_type = loss_type
 
@@ -80,15 +80,16 @@ class TextForgetDatasetQA(Dataset):
 
 
 class TextForgetDatasetDPOQA(Dataset):
-    def __init__(self, data_path, tokenizer, model_family, max_length=512, split = "forget10", ):
+    def __init__(self, data_path, forget_subset, forget_split, retain_subset,
+            retain_split, tokenizer, model_family, max_length=512, split = "train", ):
         super(TextForgetDatasetDPOQA, self).__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length
-        self.forget_data = datasets.load_dataset(data_path, split)["train"]
+        self.forget_data = datasets.load_dataset(data_path, forget_subset)[forget_split]
         self.idontknowfile = "data/idontknow.jsonl"
         self.idk = open(self.idontknowfile, "r").readlines()
         retain_split = "retain" + str(100 - int(split.replace("forget", ""))).zfill(2)
-        self.retain_data = datasets.load_dataset(data_path, retain_split)["train"]
+        self.retain_data = datasets.load_dataset(data_path, retain_subset)[retain_split]
         self.model_configs = get_model_identifiers_from_yaml(model_family)
         
 
@@ -117,13 +118,13 @@ class TextForgetDatasetDPOQA(Dataset):
 
 
 class TextDatasetQA(Dataset):
-    def __init__(self, data_path, tokenizer, model_family, max_length=512, split = None, question_key='question', answer_key='answer'):
+    def __init__(self, data_path, sub_data_path, tokenizer, model_family, max_length=512, split = None, question_key='question', answer_key='answer'):
         super(TextDatasetQA, self).__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length
         # data_len = len(datasets.load_dataset(data_path, split)["train"])
         # self.data = datasets.load_dataset(data_path, split)["train"].select(range(min(100, data_len)))
-        self.data = datasets.load_dataset(data_path, split)["train"]
+        self.data = datasets.load_dataset(data_path, sub_data_path)[split]
 
         self.data = add_dataset_index(self.data)
         self.model_configs = get_model_identifiers_from_yaml(model_family)
