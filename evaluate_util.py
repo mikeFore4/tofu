@@ -97,6 +97,7 @@ def eval_perturbation_ratio(eval_dataloader, perturb_dataloader, model):
     return eval_logs
 
 def get_dataloader(cfg, eval_task, tokenizer, folder, subset, split, question_key, answer_key, base_answer_key, perturbed_answer_key):
+    model_cfg = get_model_identifiers_from_yaml(cfg.model_family)
 
     torch_format_dataset = TextDatasetQA( 
         folder,
