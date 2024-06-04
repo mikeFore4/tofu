@@ -163,7 +163,8 @@ def get_all_evals(cfg, model, tokenizer, eval_task, eval_dataloader, base_eval_d
 
         with torch.no_grad():
             outputs = model(**batch)
-            input_string, gen_output, gt = run_generation(cfg, batch, model, tokenizer=tokenizer)
+            input_string, gen_output, gt = run_generation(cfg, batch, model,
+                    tokenizer=tokenizer, model_config=model_cfg)
             gen_outputs.extend(gen_output)
             ground_truths.extend(gt)
             input_strings.extend(input_string)
@@ -301,7 +302,7 @@ def eval_accuracy(logits, labels):
     return {"eval accuracy": acc.item()}
 
 
-def run_generation(cfg, batch, model, tokenizer):
+def run_generation(cfg, batch, model, tokenizer, model_config):
     input_ids = batch["input_ids"]
     split_symbol = model_config['question_end_tag'] + model_config['answer_tag']
     input_strings = tokenizer.batch_decode(input_ids)
