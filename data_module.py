@@ -8,6 +8,7 @@ from langchain_chroma import Chroma
 from langchain_community.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 
 from utils import get_model_identifiers_from_yaml, add_dataset_index
+import pdb
 
 
 def make_rag_prompt(docs, rag_config):

@@ -7,6 +7,13 @@ llama2-7b:
   flash_attention2: "true"
   gradient_checkpointing: "true"
   ft_model_path: "locuslab/tofu_ft_llama2-7b" #this model will be used for unlearning by default
+  rag_config:
+    use_rag: False
+    rag_start_token: ""
+    rag_end_token: ""
+    chromadb_path: ""
+    collection_name: ""
+    emb_model: "all-miniLM-L6-v2"
 llama3-8b:
   hf_key: "meta-llama/Meta-Llama-3-8B-Instruct"
   question_start_tag: "<|start_header_id|>user<|end_header_id|>\n\n"
