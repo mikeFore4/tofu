@@ -1,0 +1,35 @@
+retain_result: null
+ckpt_result: null
+method_name: temp
+submitted_by: username
+save_file: aggr_result.csv
+
+eval_task:
+  eval_log_true:
+    name: "Retain"
+    metrics:
+      rouge: null
+      gross_probability: null
+      truth_ratio:
+        forget: false
+      align_score:
+        model: 'roberta-large'
+        ckpt_path: ''
+      gpt_label:
+        node_json_path: ''
+        cache_dir: null
+  eval_log_false:
+    name: "False Claims"
+    metrics:
+      rouge: null
+      gross_probability: null
+      truth_ratio:
+        forget: false
+      align_score:
+        model: 'roberta-large'
+        ckpt_path: ''
+      gpt_label:
+        node_json_path: ''
+        cache_dir: null
+
+

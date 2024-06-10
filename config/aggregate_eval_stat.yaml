@@ -1,5 +1,44 @@
 retain_result: null
 ckpt_result: null
 method_name: temp
-submitted_by: john
+submitted_by: username
 save_file: aggr_result.csv
+
+eval_task:
+  eval_log:
+    name: "Retain"
+    metrics:
+      rouge: null
+      gross_probability: null
+      truth_ratio:
+        forget: false
+  eval_real_author_wo_options:
+    name: "Real Authors"
+    metrics:
+      rouge: null
+      multi_probability: null
+      truth_ratio:
+        forget: false
+  eval_real_world_wo_options:
+    name: "Real World"
+    metrics:
+      rouge: null
+      multi_probability: null
+      truth_ratio:
+        forget: false
+  eval_log_forget:
+    name: "Forget"
+    metrics:
+      rouge: null
+      gross_probability: null
+      truth_ratio:
+        forget: true
+
+summary_metrics:
+  model_utility:
+    leave_out: 'Forget'
+  forget_quality:
+    unlearn_key: 'eval_log_forget.json'
+    retain_key: 'eval_log_forget.json'
+
+

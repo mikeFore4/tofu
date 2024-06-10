@@ -1,5 +1,5 @@
-
 from omegaconf import OmegaConf
+import os
 import hydra 
 import json 
 import numpy as np
@@ -7,9 +7,13 @@ from scipy.stats import hmean
 from scipy.stats import sem, hmean, ks_2samp
 import pprint
 import csv 
-def get_forget_quality(unlearn_result, retain_result):
-    unlearn_forget_result = unlearn_result['eval_log_forget.json']
-    retain_forget_result = retain_result['eval_log_forget.json']
+
+import eval_metrics
+
+
+def get_forget_quality(unlearn_result, retain_result, metric_cfg):
+    unlearn_forget_result = unlearn_result[metric_cfg['unlearn_key']]
+    retain_forget_result = retain_result[metric_cfg['retain_key']]
     
     unlearn_paraphrase_np_values = np.array(list(unlearn_forget_result['avg_paraphrased_loss'].values()))
     unlearn_perturbed_np_values = np.array(list(unlearn_forget_result['average_perturb_loss'].values()))
@@ -25,84 +29,114 @@ def get_forget_quality(unlearn_result, retain_result):
     test_res = ks_2samp(unlearn_truth_ratio, retain_truth_ratio)
     return {'Forget Quality': test_res.pvalue, 'KS Test PVal Forget': test_res.pvalue, 'KS Test Forget': test_res.statistic}
 
-def get_model_utility(eval_result_dict):
-    eval_task_dict = {
-        'eval_real_author_wo_options.json': 'Real Authors',
-        'eval_real_world_wo_options.json': 'Real World',
-        'eval_log.json': 'Retain',
-        'eval_log_forget.json': 'Forget'
-    }
-    eval_tasks = list(eval_task_dict.keys())
-    metrics = ['ROUGE', 'Prob.', 'Truth Ratio']
 
+def compute_metrics(eval_result_dict, cfg):
     output_result = {}
-    for eval_task in eval_tasks:
-        for metric in metrics:
-            output_result[metric + ' ' + eval_task_dict[eval_task]] = []
+    for eval_task, task_cfg in cfg['eval_task'].items():
+        for metric_name, metric_cfg in task_cfg['metrics'].items():
+            if metric_name == 'rouge':
+                avg_rouge = eval_metrics.average_rouge(eval_result_dict[eval_task+'.json']['rougeL_recall'])
+                output_result[f"ROUGE {task_cfg['name']}"] = avg_rouge
+            elif metric_name == 'gross_probability':
+                avg_gt_prob = eval_metrics.gross_probability(eval_result_dict[eval_task+'.json']['avg_gt_loss'])
+                output_result[f"Prob. {task_cfg['name']}"] = avg_gt_prob
+            elif metric_name == 'multi_probability':
+                avg_gt_prob = eval_metrics.multiple_choice_probability(
+                        eval_result_dict[eval_task+'.json']['avg_gt_loss'],
+                        eval_result_dict[eval_task+'.json']['average_perturb_loss']
+                        )
+                output_result[f"Multi Prob. {task_cfg['name']}"] = avg_gt_prob
+            elif metric_name == 'truth_ratio':
+                paraphrased_perturb_ratio = eval_metrics.truth_ratio(
+                        eval_result_dict[eval_task+'.json']['avg_paraphrased_loss'],
+                        eval_result_dict[eval_task+'.json']['average_perturb_loss'],
+                        forget=metric_cfg['forget'],
+                        )
+                output_result[f"Truth Ratio {task_cfg['name']}"] = paraphrased_perturb_ratio
+            elif metric_name == 'align_score':
+                align_score = eval_metrics.align_score(
+                        eval_result_dict[eval_task+'.json']['generated_text'],
+                        model_name=metric_cfg['model'],
+                        checkpoint=metric_cfg['ckpt_path']
+                        )
+                output_result[f"Align Score {task_cfg['name']}"] = align_score
+            elif metric_name == 'gpt_label':
+                if metric_cfg['cache_dir'] is None:
+                    cache_dir = os.path.join(
+                            os.path.dirname(cfg.ckpt_result),
+                            f'{eval_task}_gpt_cache'
+                    )
+                else:
+                    cache_dir = metric_cfg['cache_dir']
+                os.makedirs(cache_dir, exist_ok=True)
+                gpt_match, gpt_cont = eval_metrics.gpt_label(
+                        eval_result_dict[eval_task+'.json']['generated_text'],
+                        node_json=metric_cfg['node_json_path'],
+                        cache_dir=cache_dir,
+                        )
+                output_result[f"GPT Match {task_cfg['name']}"] = gpt_match
+                output_result[f"GPT Cont {task_cfg['name']}"] = gpt_cont
+            else:
+                raise ValueError(f'Metric {metric_name} not implemented')
 
-    # k is different files
-    for k, v in eval_result_dict.items():
-        # getting Probability
-        if 'eval_log' in k:
-            gt_probs = np.exp(-1 * np.array(list(eval_result_dict[k]['avg_gt_loss'].values())))
-            avg_gt_prob = np.mean(gt_probs)
-        else:
-            avg_true_prob = np.exp(-1 * np.array(list(eval_result_dict[k]['avg_gt_loss'].values())))
-            avg_false_prob = np.exp(-1 * np.array(list(eval_result_dict[k]['average_perturb_loss'].values())))
-            avg_all_prob = np.concatenate([np.expand_dims(avg_true_prob, axis=-1), avg_false_prob], axis=1).sum(-1)
-            avg_gt_prob = np.mean(avg_true_prob/avg_all_prob)
-        output_result[f'Prob. {eval_task_dict[k]}'] = avg_gt_prob
-
-        # getting ROUGE
-        avg_rouge = np.array(list(eval_result_dict[k]['rougeL_recall'].values())).mean()
-        output_result[f'ROUGE {eval_task_dict[k]}'] = avg_rouge
-
-        # getting Truth Ratio
-        avg_paraphrase_np_values = np.array(list(eval_result_dict[k]['avg_paraphrased_loss'].values()))
-
-        avg_perturbed_np_values = np.array(list(eval_result_dict[k]['average_perturb_loss'].values()))
-        avg_perturbed_np_values = avg_perturbed_np_values.mean(axis=-1)
-
-        curr_stat_1 =  np.exp( avg_perturbed_np_values - avg_paraphrase_np_values)
-        # output_result[f'{eval_task_dict[k]} paraphrased_over_perturbed'] = curr_stat_1
-        if 'forget' in k:
-            paraphrased_perturb_ratio = np.mean(np.minimum(curr_stat_1, 1/curr_stat_1))
-        else:
-            paraphrased_perturb_ratio = np.mean(np.maximum(0, 1 - 1/curr_stat_1))
-        output_result[f'Truth Ratio {eval_task_dict[k]}'] = paraphrased_perturb_ratio
-
-    model_utility_cands = []
-    for k, v in output_result.items():
-        if 'Forget' not in k:
-            model_utility_cands.append(v)
-    output_result['Model Utility'] = hmean(model_utility_cands)
     return output_result
 
-@hydra.main(version_base=None, config_path="config", config_name="aggregate_eval_stat")
+
+def get_model_utility(output_result, metric_cfg):
+    model_utility_cands = []
+    if isinstance(metric_cfg['leave_out'], str):
+        leave_vals = [metric_cfg['leave_out']]
+    else:
+        leave_vals = [metric_cfg['leave_out']]
+    for k, v in output_result.items():
+        skip = False
+        for lv in leave_vals:
+            if lv in k:
+                skip = True
+                break
+        if not skip:
+            model_utility_cands.append(v)
+
+    return hmean(model_utility_cands)
+
+@hydra.main(version_base=None, config_path="config",config_name="aggregate_eval_stat")
 def main(cfg):
-    if cfg.retain_result is None or cfg.ckpt_result is None:
-        raise ValueError("Please provide either retain_result or ckpt_result")
-    
-    retain_result = json.load(open(cfg.retain_result))
+    if cfg.ckpt_result is None:
+        raise ValueError("Must provide ckpt path")
+
     ckpt_result = json.load(open(cfg.ckpt_result))
+
+    if cfg.retain_result is not None:
+        retain_result = json.load(open(cfg.retain_result))
 
     # We have to assume here that retain_result and ckpt_result follow these structure:
     # The top most layer has ['eval_log.json', 'eval_log_forget.json', 'eval_real_world_wo_options.json', 'eval_real_author_wo_options']
     # the second layer contains the actual metrics: ['avg_gt_loss', 'average_perturb_loss', 'avg_paraphrased_loss', 'rougeL_recall']
     # within each metric, we have {data_idx: measurement}
 
-    model_utility = get_model_utility(ckpt_result)
-    forget_quality = get_forget_quality(ckpt_result, retain_result)
-    model_utility['Forget Quality'] = forget_quality['Forget Quality']
+    output_result = compute_metrics(ckpt_result, cfg)
+    if 'summary_metrics' in cfg.keys():
+        for metric_name, metric_cfg in cfg['summary_metrics'].items():
+            if metric_name == 'model_utility':
+                output_result['Model Utility'] = get_model_utility(
+                        output_result,
+                        metric_cfg
+                        )
+            elif metric_name == 'forget_quality':
+                if cfg.retain_result is None:
+                    raise ValueError('Forget Quality metric requires that retain result be specified')
 
-    model_utility['Method'] = cfg.method_name
-    model_utility['Submitted By'] = cfg.submitted_by
+                output_result['Forget Quality'] = get_forget_quality(ckpt_result,
+                        retain_result, metric_cfg)['Forget Quality']
+
+    output_result['Method'] = cfg.method_name
+    output_result['Submitted By'] = cfg.submitted_by
     # dump the model utility to a temp.csv
     with open(cfg.save_file, 'w') as f:  # You will need 'wb' mode in Python 2.x
-        w = csv.DictWriter(f, model_utility.keys())
+        w = csv.DictWriter(f, output_result.keys())
         w.writeheader()
-        w.writerow(model_utility)
-    return model_utility
+        w.writerow(output_result)
+    return output_result
     
 if __name__ == "__main__":
     main()

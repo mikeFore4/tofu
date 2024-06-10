@@ -1,0 +1,39 @@
+model_path: unlearning_ckpt2/ft_model_10_epochs_inst_lr1e-3
+model_family: llama2-7b
+
+save_dir: ${model_path}/eval_results/ds_size${ds_size}
+
+#dataset path for each of the 4 datasets to be evaluated
+data_path: [MS-Costrat-RD/climateQA, MS-Costrat-RD/climateQA]
+subset_list:
+  - false_claims
+  - true_claims
+split_list:
+  - test
+  - test
+
+
+question_key: [question, question]
+answer_key: [answer, answer]
+
+base_answer_key: [paraphrased_answer, paraphrased_answer]
+perturbed_answer_key: [perturbed_answer, perturbed_answer]
+
+eval_task: [eval_log_false, eval_log_true]
+
+generation:
+  max_length: 512
+  max_new_tokens: null
+
+save_generated_text: true
+
+ds_size: null
+
+overwrite: true
+use_pretrained: false
+
+batch_size: 30
+reinitialize_weights: false
+
+retain_result: null
+
