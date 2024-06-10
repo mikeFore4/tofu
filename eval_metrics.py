@@ -67,14 +67,16 @@ def align_score(generated_text:dict, scorer:AlignScore=None,
     return np.mean(all_scores)
 
 
-def gpt_label(generated_text:dict, node_json:dict, cache_dir:str=None) -> (float, float):
+def gpt_label(generated_text:dict, node_json:dict, cache_dir:str=None,
+        remove_special_tokens:List[str]=[]) -> (float, float):
     prompt_vals = {}
     cached_idx = [fp.replace('response_','').replace('.json','') for fp in os.listdir(cache_dir)]
     for k,v in generated_text.items():
         if k in cached_idx:
             continue
-        #TODO: use model config to parse out special tokens from question
         question = v[0]
+        for tok in remove_special_tokens:
+            question=question.replace(tok,'')
         pred = v[1]
         gt = v[2]
 

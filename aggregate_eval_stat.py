@@ -8,6 +8,7 @@ from scipy.stats import sem, hmean, ks_2samp
 import pprint
 import csv 
 
+from utils import get_model_identifiers_from_yaml
 import eval_metrics
 
 
@@ -61,6 +62,14 @@ def compute_metrics(eval_result_dict, cfg):
                         )
                 output_result[f"Align Score {task_cfg['name']}"] = align_score
             elif metric_name == 'gpt_label':
+                model_cfg = get_model_identifiers_from_yaml(cfg.model_family)
+                special_keys = [
+                        'answer_tag',
+                        'answer_end_tag',
+                        'question_start_tag',
+                        'question_end_tag'
+                        ]
+                remove_special_tokens=[model_cfg[key] for key in special_keys]
                 if metric_cfg['cache_dir'] is None:
                     cache_dir = os.path.join(
                             os.path.dirname(cfg.ckpt_result),
@@ -73,6 +82,7 @@ def compute_metrics(eval_result_dict, cfg):
                         eval_result_dict[eval_task+'.json']['generated_text'],
                         node_json=metric_cfg['node_json_path'],
                         cache_dir=cache_dir,
+                        remove_special_tokens=remove_special_tokens,
                         )
                 output_result[f"GPT Match {task_cfg['name']}"] = gpt_match
                 output_result[f"GPT Cont {task_cfg['name']}"] = gpt_cont

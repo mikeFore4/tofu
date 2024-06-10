@@ -3,6 +3,7 @@ ckpt_result: null
 method_name: temp
 submitted_by: username
 save_file: aggr_result.csv
+model_family: llama2-7b
 
 eval_task:
   eval_log_true:
