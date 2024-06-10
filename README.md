@@ -1,10 +1,3 @@
-Installing alignscore:
-
-first clone this [repository](https://github.com/yuh-zha/AlignScore)
-Next, go to the repo and pip install .
-Last, python -m spacy download en_core_web_sm
-
-
 # ClimateTOFU
 
 This repo contains all the code used in the paper [Unlearning Climate Misinformation in Large Language Models](https://arxiv.org/abs/2405.19563). The repo is forked from [locuslab/tofu](https://github.com/locuslab/tofu), but has significant modificaton enabling running Llama3, RAG at both inference time and finetuning, new evaluation metrics (GPT labeling and alignscore), and additional ability to configure evaluation metrics, rather than explicitly hardcoding the ones in the original [TOFU paper](http://arxiv.org/abs/2401.06121).
